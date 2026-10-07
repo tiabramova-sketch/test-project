@@ -1,0 +1,24 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# --- Privacy safeguards (see PRIVACY.md) ---
+# Never commit real personal data, recordings, or exports.
+private-data/
+recordings/
+exports/
+*.wav
+*.webm
+*.mp3
+.env
+.env.*
