@@ -203,7 +203,7 @@ describe('sample data and clearing', () => {
       blob: new Blob(['x']),
       mimeType: 'audio/webm',
     });
-    await clearAllData();
+    await clearAllData({ confirmed: true });
     expect(await listStories()).toEqual([]);
     expect(await listAttempts()).toEqual([]);
     expect(await getRecording(saved.recordingId!)).toBeUndefined();
@@ -211,7 +211,7 @@ describe('sample data and clearing', () => {
   });
 
   it('can re-add sample stories on request', async () => {
-    await clearAllData();
+    await clearAllData({ confirmed: true });
     await addSampleStories();
     expect(await listStories()).toHaveLength(SAMPLE_STORIES.length);
   });

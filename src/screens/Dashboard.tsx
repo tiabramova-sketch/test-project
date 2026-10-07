@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { BackupRestore } from '../components/BackupRestore';
+import { ConfirmPanel } from '../components/ConfirmPanel';
 import { addSampleStories, clearAllData, listAttempts, listStories } from '../lib/db';
 import { formatDate, suggestLevel } from '../lib/progression';
 import { useLoader } from '../lib/useLoader';
@@ -24,6 +26,7 @@ export function Dashboard({ navigate }: { navigate: Navigate }) {
   const { data, error, loading, reload } = useLoader(loadDashboard);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   if (loading) return <p>Loading…</p>;
   if (error || !data) return <p className="error">Could not load your data: {error}</p>;
@@ -40,12 +43,10 @@ export function Dashboard({ navigate }: { navigate: Navigate }) {
     .slice(0, 3);
 
   const handleClear = async () => {
-    if (!window.confirm('Delete all stories, practice history and recordings from this browser? This cannot be undone.')) {
-      return;
-    }
     setBusy(true);
-    await clearAllData();
+    await clearAllData({ confirmed: true });
     setBusy(false);
+    setConfirmingClear(false);
     setMessage('All data has been deleted from this browser.');
     reload();
   };
@@ -156,11 +157,36 @@ export function Dashboard({ navigate }: { navigate: Navigate }) {
           <button onClick={handleAddSamples} disabled={busy}>
             Add sample stories
           </button>
-          <button className="danger" onClick={handleClear} disabled={busy}>
+          <button className="danger" onClick={() => setConfirmingClear(true)} disabled={busy || confirmingClear}>
             Delete all data
           </button>
         </div>
+        {confirmingClear && (
+          <ConfirmPanel
+            word="DELETE"
+            actionLabel="Delete all data"
+            busy={busy}
+            onConfirm={handleClear}
+            onCancel={() => setConfirmingClear(false)}
+          >
+            <p className="warning">
+              This deletes every story, practice round and recording from this browser. It cannot be
+              undone. Create a full backup first if you may need them again.
+            </p>
+          </ConfirmPanel>
+        )}
       </section>
+
+      <BackupRestore
+        current={{
+          stories: stories.length,
+          attempts: attempts.length,
+          recordings: attempts.filter((a) => a.recordingId).length,
+        }}
+        busy={busy}
+        setBusy={setBusy}
+        onDataChanged={reload}
+      />
     </div>
   );
 }

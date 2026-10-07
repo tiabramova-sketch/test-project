@@ -17,6 +17,8 @@ coverage/
 private-data/
 recordings/
 exports/
+interview-lab-stories-*.json
+*.ilbackup.json
 *.wav
 *.webm
 *.ogg
