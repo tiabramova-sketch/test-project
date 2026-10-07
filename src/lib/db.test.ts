@@ -133,6 +133,28 @@ describe('practice attempts and recordings', () => {
     expect(recording?.blob.size).toBe(4);
   });
 
+  it('stores the session-timer duration on the recording', async () => {
+    const saved = await savePracticeAttempt(
+      { ...attempt('s1', '2026-01-01T00:00:00Z'), durationMs: 93_250 },
+      { blob: new Blob(['x'], { type: 'audio/webm' }), mimeType: 'audio/webm' },
+    );
+    expect((await getRecording(saved.recordingId!))?.durationMs).toBe(93_250);
+    expect((await listAttempts())[0].durationMs).toBe(93_250);
+  });
+
+  it('refuses an invalid attempt and saves nothing', async () => {
+    await expect(
+      savePracticeAttempt({ ...attempt('s1', '2026-01-01T00:00:00Z'), confidence: 9 }, {
+        blob: new Blob(['x']),
+        mimeType: 'audio/webm',
+      }),
+    ).rejects.toThrow(/Confidence/);
+    await expect(
+      savePracticeAttempt({ ...attempt('s1', '2026-01-01T00:00:00Z'), durationMs: Number.NaN }),
+    ).rejects.toThrow(/Duration/);
+    expect(await listAttempts()).toEqual([]);
+  });
+
   it('filters attempts by story and sorts newest first', async () => {
     await savePracticeAttempt(attempt('s1', '2026-01-01T00:00:00Z'));
     await savePracticeAttempt(attempt('s1', '2026-01-03T00:00:00Z'));

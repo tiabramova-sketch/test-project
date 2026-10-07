@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_STORIES } from '../data/sampleStories';
 import type { StoryDraft } from '../types';
-import { LIMITS, normalizeDraft, validateStory } from './validation';
+import { LIMITS, normalizeDraft, validatePracticeAttempt, validateStory } from './validation';
 
 function validDraft(overrides: Partial<StoryDraft> = {}): StoryDraft {
   return {
@@ -104,5 +104,32 @@ describe('sample data', () => {
     for (const story of SAMPLE_STORIES) {
       expect(story.situation.toLowerCase()).toContain('fictional');
     }
+  });
+});
+
+describe('validatePracticeAttempt', () => {
+  const base = {
+    storyId: 's1',
+    storyTitle: 'Story',
+    level: 2 as const,
+    prompt: 'Tell me about…',
+    startedAt: '2026-01-01T00:00:00Z',
+    durationMs: 1000,
+    confidence: 3,
+    notes: '',
+  };
+
+  it('accepts a valid attempt', () => {
+    expect(validatePracticeAttempt(base)).toBeNull();
+  });
+
+  it('rejects bad confidence, duration, level and dates', () => {
+    expect(validatePracticeAttempt({ ...base, confidence: 0 })).toMatch(/Confidence/);
+    expect(validatePracticeAttempt({ ...base, confidence: 2.5 })).toMatch(/Confidence/);
+    expect(validatePracticeAttempt({ ...base, durationMs: -1 })).toMatch(/Duration/);
+    expect(validatePracticeAttempt({ ...base, durationMs: Infinity })).toMatch(/Duration/);
+    expect(validatePracticeAttempt({ ...base, level: 7 as never })).toMatch(/level/);
+    expect(validatePracticeAttempt({ ...base, startedAt: 'yesterday' })).toMatch(/date/);
+    expect(validatePracticeAttempt({ ...base, storyId: '' })).toMatch(/story/);
   });
 });

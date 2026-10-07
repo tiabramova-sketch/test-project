@@ -1,4 +1,4 @@
-import { COMPETENCIES, type StoryDraft } from '../types';
+import { COMPETENCIES, SCAFFOLD_LEVELS, type PracticeAttempt, type StoryDraft } from '../types';
 
 export const LIMITS = {
   title: 120,
@@ -94,4 +94,20 @@ export class StoryValidationError extends Error {
     this.name = 'StoryValidationError';
     this.errors = errors;
   }
+}
+
+/** Returns a problem description, or null if the attempt can be saved. */
+export function validatePracticeAttempt(
+  attempt: Omit<PracticeAttempt, 'id' | 'recordingId'>,
+): string | null {
+  if (!attempt.storyId) return 'A practice round must belong to a story.';
+  if (!SCAFFOLD_LEVELS.some((l) => l.level === attempt.level)) return 'Unknown support level.';
+  if (!Number.isFinite(attempt.durationMs) || attempt.durationMs < 0) {
+    return 'Duration must be a non-negative number of milliseconds.';
+  }
+  if (!Number.isInteger(attempt.confidence) || attempt.confidence < 1 || attempt.confidence > 5) {
+    return 'Confidence must be a whole number from 1 to 5.';
+  }
+  if (Number.isNaN(Date.parse(attempt.startedAt))) return 'Start time is not a valid date.';
+  return null;
 }

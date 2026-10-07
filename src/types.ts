@@ -67,5 +67,10 @@ export interface Recording {
   attemptId: string;
   mimeType: string;
   blob: Blob;
+  /**
+   * Length measured by the session timer. Stored explicitly because WebM files
+   * written by MediaRecorder carry no reliable duration metadata.
+   */
+  durationMs: number;
   createdAt: string;
 }

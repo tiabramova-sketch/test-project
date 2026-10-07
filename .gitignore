@@ -19,6 +19,7 @@ recordings/
 exports/
 *.wav
 *.webm
+*.ogg
 *.mp3
 .env
 .env.*

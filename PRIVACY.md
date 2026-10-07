@@ -26,7 +26,7 @@ Never commit:
 - Real interview stories, CVs/resumes, cover letters or career history.
 - Names of real people (colleagues, managers, interviewers, customers).
 - Real employer, client or product names tied to your personal stories.
-- Audio recordings of any kind (`*.wav`, `*.webm`, `*.mp3`, …).
+- Audio recordings of any kind (`*.wav`, `*.webm`, `*.ogg`, `*.mp3`, …).
 - Exports or backups of the app's IndexedDB data.
 - Screenshots that show real stories.
 - Secrets or environment files (`.env`).
@@ -40,6 +40,7 @@ recordings/
 exports/
 *.wav
 *.webm
+*.ogg
 *.mp3
 ```
 

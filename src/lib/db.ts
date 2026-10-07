@@ -1,7 +1,7 @@
 import { SAMPLE_STORIES } from '../data/sampleStories';
 import type { PracticeAttempt, Recording, Story, StoryDraft } from '../types';
 import { createId } from './ids';
-import { normalizeDraft, StoryValidationError, validateStory } from './validation';
+import { normalizeDraft, StoryValidationError, validatePracticeAttempt, validateStory } from './validation';
 
 /**
  * All persistence lives in this browser's IndexedDB. Nothing here performs a
@@ -176,11 +176,16 @@ export async function deleteStory(id: string): Promise<void> {
 
 export type NewAttempt = Omit<PracticeAttempt, 'id' | 'recordingId'>;
 
-/** Saves a practice attempt and, optionally, its audio in a single transaction. */
+/**
+ * Saves a practice attempt and, optionally, its audio in a single transaction.
+ * The recording's duration is copied from the attempt's session-timer value.
+ */
 export async function savePracticeAttempt(
   attempt: NewAttempt,
   audio?: { blob: Blob; mimeType: string },
 ): Promise<PracticeAttempt> {
+  const problem = validatePracticeAttempt(attempt);
+  if (problem) throw new Error(problem);
   const attemptId = createId();
   const recording: Recording | null = audio
     ? {
@@ -188,6 +193,7 @@ export async function savePracticeAttempt(
         attemptId,
         mimeType: audio.mimeType,
         blob: audio.blob,
+        durationMs: attempt.durationMs,
         createdAt: new Date().toISOString(),
       }
     : null;

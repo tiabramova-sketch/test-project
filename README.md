@@ -57,6 +57,8 @@ so they need no browser:
 - `src/lib/validation.test.ts` — story validation and normalisation, plus checks
   that the sample data is valid and marked as fictional.
 - `src/lib/progression.test.ts` — level suggestions and formatting helpers.
+- `src/lib/recording.test.ts` — WebM format choice, recording support checks and
+  microphone error messages (including permission denied).
 
 ## Project structure
 
@@ -66,28 +68,43 @@ src/
   types.ts                Story, PracticeAttempt, Recording, scaffold levels
   data/sampleStories.ts   synthetic demonstration stories
   lib/db.ts               IndexedDB storage
-  lib/validation.ts       story validation
+  lib/validation.ts       story and practice-round validation
   lib/progression.ts      level suggestions, prompts, formatting
-  lib/useRecorder.ts      MediaRecorder hook
+  lib/recording.ts        format choice, support checks, microphone errors
+  lib/useRecorder.ts      MediaRecorder hook (timer-based duration)
   components/             StoryForm, ScaffoldView, AudioPlayer, PrivacyNotice
   screens/                Dashboard, StoryLibrary, PracticeSession, PracticeHistory
 ```
 
-## Browser notes
+## Browser support (MVP)
 
-- **Microphone access needs a secure context.** Recording works on
-  `http://localhost` and HTTPS, but not when the dev server is opened over a
-  LAN IP (`http://192.168.x.x`). You can still practise without recording.
-- **Recording formats differ by browser.** Chrome, Edge and Firefox record
-  WebM/Opus or Ogg/Opus; Safari records MP4/AAC. A recording may not play in a
-  different browser from the one that made it.
-- **WebM recordings from Chrome have no duration header**, so the audio player
-  may show an unknown length until playback reaches the end. The round's
-  length is stored separately and shown in Practice History.
+- **Chromium-based browsers first** (Chrome, Edge, Brave, Arc). Other browsers
+  may work but are not tested yet.
+- **Run on `localhost`.** Use `npm run dev` or `npm run preview` and open the
+  `http://localhost:…` address. Browsers only allow microphone access on secure
+  origins, so opening the dev server through a LAN IP (`http://192.168.x.x`)
+  disables recording. The app explains this and lets you practise without
+  recording.
+- **WebM recording.** Audio is recorded as `audio/webm;codecs=opus` (or
+  `audio/webm`) where supported; otherwise the browser's default format is
+  used as-is. There is no cross-browser audio conversion yet, so a recording
+  may not play in a different browser from the one that made it.
+- **Duration comes from the session timer.** WebM files written by
+  `MediaRecorder` have no reliable duration header, so the app measures each
+  round from start to stop and stores `durationMs` on both the practice round
+  and the recording. The audio player itself may still show an unknown length
+  until playback reaches the end.
+- **Microphone permission denied.** The app shows what happened, how to
+  re-allow the microphone (site settings icon at the left of the address bar →
+  Microphone → Allow), and offers *Try again* or *Continue without recording*.
+  In Chromium a blocked microphone is detected before you press record. If the
+  microphone disconnects mid-answer, the audio captured so far is kept.
+- **Storage is separate per origin and port.** IndexedDB data belongs to the
+  exact origin: `http://localhost:5173` (dev) and `http://localhost:4173`
+  (preview) have separate, independent data, as do different browsers and
+  browser profiles. Use the same address every time.
 - **Storage can be evicted.** Browsers may clear site data under storage
-  pressure, and Safari may delete data for sites you have not visited for a
-  while. "Ask browser to keep data" requests persistent storage, but the
-  browser may decline. Private/incognito windows discard everything on close.
-- **Data is per browser and per origin.** Different browsers, profiles or ports
-  (for example `5173` for dev and `4173` for preview) each keep separate data.
+  pressure. "Ask browser to keep data" on the Dashboard requests persistent
+  storage, but the browser may decline. Private/incognito windows discard
+  everything on close.
 - There is no export or backup in this first version.

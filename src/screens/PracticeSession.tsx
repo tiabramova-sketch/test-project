@@ -4,7 +4,7 @@ import { ScaffoldView } from '../components/ScaffoldView';
 import { listAttempts, listStories, savePracticeAttempt } from '../lib/db';
 import { formatDuration, PROMPTS, suggestLevel } from '../lib/progression';
 import { useLoader } from '../lib/useLoader';
-import { isRecordingSupported, useRecorder } from '../lib/useRecorder';
+import { getRecordingSupport, useMicrophonePermission, useRecorder } from '../lib/useRecorder';
 import type { Navigate } from '../routes';
 import { SCAFFOLD_LEVELS, type ScaffoldLevel, type Story } from '../types';
 
@@ -32,12 +32,14 @@ export function PracticeSession({ navigate, initialStoryId }: { navigate: Naviga
   const [showFullStory, setShowFullStory] = useState(false);
 
   const recorder = useRecorder();
-  const recordingSupported = isRecordingSupported();
+  const recordingSupport = getRecordingSupport();
+  const micPermission = useMicrophonePermission();
 
   // A recorded round moves to review as soon as the recorder has produced its audio.
   const phase: Phase =
     phaseState === 'practising' && withAudio && recorder.status === 'stopped' ? 'review' : phaseState;
-  const durationMs = withAudio ? recorder.elapsedMs : silentDurationMs;
+  // Both durations come from the session timer, never from the audio file's metadata.
+  const durationMs = withAudio ? recorder.durationMs : silentDurationMs;
 
   // Timer for rounds practised without recording.
   useEffect(() => {
@@ -95,6 +97,14 @@ export function PracticeSession({ navigate, initialStoryId }: { navigate: Naviga
     }
   };
 
+  /** After a microphone problem, keep going with the same prompt but no audio. */
+  const continueWithoutRecording = () => {
+    recorder.reset();
+    setWithAudio(false);
+    setStartedAt(new Date());
+    setSilentElapsed(0);
+  };
+
   const discard = () => {
     recorder.reset();
     setPhase('setup');
@@ -116,7 +126,7 @@ export function PracticeSession({ navigate, initialStoryId }: { navigate: Naviga
           confidence,
           notes: notes.trim(),
         },
-        recorder.blob ? { blob: recorder.blob, mimeType: recorder.blob.type } : undefined,
+        withAudio && recorder.blob ? { blob: recorder.blob, mimeType: recorder.blob.type } : undefined,
       );
       recorder.reset();
       setLevelOverride(null);
@@ -179,15 +189,21 @@ export function PracticeSession({ navigate, initialStoryId }: { navigate: Naviga
               : `You have practised this story ${storyAttempts.length} time${storyAttempts.length === 1 ? '' : 's'}.`}
           </p>
           <div className="actions">
-            <button className="primary" onClick={() => begin(true)} disabled={!recordingSupported}>
+            <button className="primary" onClick={() => begin(true)} disabled={!recordingSupport.supported}>
               Start and record
             </button>
             <button onClick={() => begin(false)}>Start without recording</button>
           </div>
-          {!recordingSupported && (
+          {!recordingSupport.supported && (
             <p className="notice">
-              Recording is not available in this browser or on this connection. You can still practise
-              without recording.
+              {recordingSupport.message} You can still practise without recording.
+            </p>
+          )}
+          {recordingSupport.supported && micPermission === 'denied' && (
+            <p className="notice" role="status">
+              Microphone access is blocked for this page. To record, click the site settings icon at the
+              left of the address bar and set Microphone to &quot;Allow&quot;. You can still practise without
+              recording.
             </p>
           )}
           <p className="muted small">Recordings are saved only in this browser and are never uploaded.</p>
@@ -204,10 +220,28 @@ export function PracticeSession({ navigate, initialStoryId }: { navigate: Naviga
               {formatDuration(elapsed)}
             </div>
             {withAudio && recorder.status === 'requesting' && <p className="muted">Waiting for microphone permission…</p>}
-            {recorder.error && <p className="error">{recorder.error}</p>}
+            {recorder.error && (
+              <div className="mic-error" role="alert">
+                <p className="error">
+                  <strong>{recorder.error.message}</strong>
+                </p>
+                <p>{recorder.error.help}</p>
+              </div>
+            )}
+            {recorder.warning && (
+              <p className="notice" role="status">
+                {recorder.warning}
+              </p>
+            )}
             <div className="actions">
               {recorder.status === 'error' ? (
-                <button onClick={discard}>Back</button>
+                <>
+                  <button className="primary" onClick={continueWithoutRecording}>
+                    Continue without recording
+                  </button>
+                  <button onClick={() => recorder.start()}>Try again</button>
+                  <button onClick={discard}>Back</button>
+                </>
               ) : (
                 <>
                   <button className="primary" onClick={finish} disabled={withAudio && recorder.status !== 'recording'}>
