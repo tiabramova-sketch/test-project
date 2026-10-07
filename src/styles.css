@@ -9,6 +9,7 @@
   --accent-text: #ffffff;
   --accent-soft: #e8eefc;
   --danger: #b42318;
+  --warning: #b54708;
   --success-soft: #e7f6ec;
   --success-text: #1f6b3a;
   --radius: 10px;
@@ -30,6 +31,7 @@
     --accent-text: #0e1220;
     --accent-soft: #222c45;
     --danger: #ff8a80;
+    --warning: #fdb022;
     --success-soft: #17301f;
     --success-text: #8fe0a8;
   }
@@ -147,6 +149,20 @@ textarea { resize: vertical; }
 }
 .next-list li:first-child { border-top: none; }
 .levels li { margin-bottom: 0.3rem; }
+.warning { border-left: 3px solid var(--warning); padding-left: 0.8rem; }
+ul.warning { padding-left: 2rem; }
+.error-notice { color: var(--danger); }
+.error-notice ul, .error-notice p:last-child { margin-bottom: 0; }
+.notice > p:last-child { margin-bottom: 0; }
+.confirm-panel { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-top: 1rem; background: var(--bg); }
+.confirm-panel input:not([type='radio']) { max-width: 16rem; display: block; margin-top: 0.25rem; }
+.choice { border: none; padding: 0; margin: 0.75rem 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.choice legend { font-weight: 600; margin-bottom: 0.4rem; }
+.choice label { display: flex; align-items: center; gap: 0.5rem; }
+.choice input { width: auto; }
+.preview-table { border-collapse: collapse; margin: 0.5rem 0 1rem; }
+.preview-table th, .preview-table td { text-align: left; padding: 0.35rem 1rem 0.35rem 0; border-bottom: 1px solid var(--border); }
+.preview-table thead th { font-size: 0.85rem; color: var(--muted); }
 
 /* ---------- Library ---------- */
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }

@@ -11,7 +11,7 @@ Everything stays in your browser. See [PRIVACY.md](PRIVACY.md).
 
 | Screen | What it does |
 | --- | --- |
-| **Dashboard** | Counts, the stories to practise next with a suggested support level, and controls for local data (delete all, re-add samples, ask the browser to keep data). |
+| **Dashboard** | Counts, the stories to practise next with a suggested support level, and controls for local data (delete all, re-add samples, ask the browser to keep data) and **Backup and restore**. |
 | **Story Library** | Create, view, edit, filter and delete stories (situation, task, personal actions, decision/trade-off, result, follow-up questions, useful phrases). |
 | **Practice Session** | Pick a story and a support level (1 Full script → 4 Question only), answer out loud with optional audio recording, then review, rate your confidence and save. |
 | **Practice History** | All saved rounds with level, length, confidence, notes and playback of stored recordings. |
@@ -54,6 +54,10 @@ so they need no browser:
 
 - `src/lib/db.test.ts` — story CRUD, timestamps, practice rounds, audio blobs,
   one-time sample seeding and "delete all data".
+- `src/lib/backup.test.ts` — stories export/import round trip, invalid stories,
+  duplicate ids (skip/replace), full backup/restore round trip with audio bytes,
+  attempt↔recording relationships, unsupported schema versions, corrupted
+  files, atomic rollback and confirmation requirements.
 - `src/lib/validation.test.ts` — story validation and normalisation, plus checks
   that the sample data is valid and marked as fictional.
 - `src/lib/progression.test.ts` — level suggestions and formatting helpers.
@@ -67,12 +71,15 @@ src/
   App.tsx                 navigation shell and privacy banner
   types.ts                Story, PracticeAttempt, Recording, scaffold levels
   data/sampleStories.ts   synthetic demonstration stories
-  lib/db.ts               IndexedDB storage
+  lib/db.ts               IndexedDB storage, story import, atomic restore
+  lib/backupFormat.ts     export/backup file formats and validation
+  lib/download.ts         saves a file from a local blob: URL
   lib/validation.ts       story and practice-round validation
   lib/progression.ts      level suggestions, prompts, formatting
   lib/recording.ts        format choice, support checks, microphone errors
   lib/useRecorder.ts      MediaRecorder hook (timer-based duration)
-  components/             StoryForm, ScaffoldView, AudioPlayer, PrivacyNotice
+  components/             StoryForm, ScaffoldView, AudioPlayer, PrivacyNotice,
+                          BackupRestore, ConfirmPanel
   screens/                Dashboard, StoryLibrary, PracticeSession, PracticeHistory
 ```
 
@@ -107,4 +114,30 @@ src/
   pressure. "Ask browser to keep data" on the Dashboard requests persistent
   storage, but the browser may decline. Private/incognito windows discard
   everything on close.
-- There is no export or backup in this first version.
+
+## Backup and restore
+
+The Dashboard's **Backup and restore** section protects your data against
+browser storage being cleared. Files are built and read entirely in the
+browser; nothing is uploaded.
+
+- **Export stories** saves `interview-lab-stories-YYYY-MM-DD.json`: readable
+  JSON with `format`, `schemaVersion` and `exportedAt`.
+- **Import stories** validates the file first and shows a preview (valid and
+  invalid stories, validation errors, ids that already exist). Nothing is
+  written until you press *Import*; you can cancel. If ids already exist you
+  must choose **Skip existing** or **Replace existing**.
+- **Create full backup** saves `interview-lab-backup-YYYY-MM-DD.ilbackup.json`
+  with stories, practice rounds (notes, confidence, duration), recording
+  metadata and the audio itself (base64). The date of the last backup made in
+  this browser is shown.
+- **Restore full backup** checks file type, schema version, structure, ids,
+  round↔recording links, audio types and sizes before touching storage, shows
+  a preview, and requires typing `RESTORE`. All data is replaced in a single
+  IndexedDB transaction: if anything fails, nothing changes.
+- **Delete all data** requires typing `DELETE`.
+
+Limits: files up to 512 MB, recordings up to 100 MB each. The whole backup is
+held in memory while it is created or read, and base64 makes audio about a
+third larger. Backups contain your voice and stories unencrypted — store them
+somewhere private.

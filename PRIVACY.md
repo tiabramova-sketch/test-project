@@ -15,6 +15,11 @@ recordings are personal, so the app is built to keep them on your device.
 - No web fonts, CDNs or third-party scripts are loaded.
 - Audio is recorded with the browser's `MediaRecorder` API and played back from
   local `blob:` URLs. It is never uploaded.
+- Story exports and full backups are generated in the browser and saved as
+  files on your device through a local `blob:` URL. Imports and restores read
+  a file you pick; they are validated as data and never rendered as HTML.
+  No backup is sent anywhere. Backup files are **not encrypted** and contain
+  your stories, notes and voice, so keep them somewhere private.
 - "Delete all data" on the Dashboard removes every story, round and recording
   from this browser. Clearing site data in your browser does the same.
 
@@ -38,6 +43,8 @@ personal material inside them if it has to live in the working copy at all:
 private-data/
 recordings/
 exports/
+interview-lab-stories-*.json
+*.ilbackup.json
 *.wav
 *.webm
 *.ogg

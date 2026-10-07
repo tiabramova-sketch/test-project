@@ -1,5 +1,6 @@
 import { SAMPLE_STORIES } from '../data/sampleStories';
 import type { PracticeAttempt, Recording, Story, StoryDraft } from '../types';
+import type { BackupSnapshot } from './backupFormat';
 import { createId } from './ids';
 import { normalizeDraft, StoryValidationError, validatePracticeAttempt, validateStory } from './validation';
 
@@ -266,8 +267,18 @@ export async function addSampleStories(): Promise<void> {
   for (const draft of SAMPLE_STORIES) await createStory(draft);
 }
 
+/** Callers must pass this to show the user explicitly confirmed a destructive action. */
+export interface Confirmed {
+  confirmed: true;
+}
+
+function requireConfirmation(options: Confirmed | undefined, action: string): void {
+  if (options?.confirmed !== true) throw new Error(`${action} needs explicit confirmation.`);
+}
+
 /** Removes every story, attempt and recording from this browser. */
-export async function clearAllData(): Promise<void> {
+export async function clearAllData(options: Confirmed): Promise<void> {
+  requireConfirmation(options, 'Deleting all data');
   await withTransaction(
     [STORES.stories, STORES.attempts, STORES.recordings, STORES.meta],
     'readwrite',
@@ -280,5 +291,95 @@ export async function clearAllData(): Promise<void> {
       // Keep the "seeded" flag so the samples are not silently re-added.
       await promisify(tx.objectStore(STORES.meta).put(true, SEEDED_KEY));
     },
+  );
+}
+
+// ---------- Import, backup and restore ----------
+
+export type DuplicateMode = 'skip' | 'replace';
+
+export interface StoryImportResult {
+  added: number;
+  replaced: number;
+  skipped: number;
+}
+
+/**
+ * Writes already-validated stories in one transaction. Existing stories with
+ * the same id are only overwritten when the caller explicitly chose 'replace'.
+ */
+export async function importStories(stories: Story[], duplicates: DuplicateMode): Promise<StoryImportResult> {
+  if (duplicates !== 'skip' && duplicates !== 'replace') {
+    throw new Error('Choose whether to skip or replace existing stories.');
+  }
+  return withTransaction([STORES.stories], 'readwrite', async (tx) => {
+    const store = tx.objectStore(STORES.stories);
+    const result: StoryImportResult = { added: 0, replaced: 0, skipped: 0 };
+    for (const story of stories) {
+      const exists = (await promisify(store.getKey(story.id))) !== undefined;
+      if (!exists) {
+        await promisify(store.add(story));
+        result.added++;
+      } else if (duplicates === 'replace') {
+        await promisify(store.put(story));
+        result.replaced++;
+      } else {
+        result.skipped++;
+      }
+    }
+    return result;
+  });
+}
+
+/** Reads every story, attempt and recording in one consistent snapshot. */
+export async function readAllData(): Promise<BackupSnapshot> {
+  return withTransaction([STORES.stories, STORES.attempts, STORES.recordings], 'readonly', async (tx) => {
+    const [stories, attempts, recordings] = await Promise.all([
+      promisify(tx.objectStore(STORES.stories).getAll() as IDBRequest<Story[]>),
+      promisify(tx.objectStore(STORES.attempts).getAll() as IDBRequest<PracticeAttempt[]>),
+      promisify(tx.objectStore(STORES.recordings).getAll() as IDBRequest<Recording[]>),
+    ]);
+    return { stories, attempts, recordings };
+  });
+}
+
+/**
+ * Replaces all stories, attempts and recordings with `snapshot` in a single
+ * transaction. If any write fails the transaction is aborted and the existing
+ * data is left exactly as it was. The snapshot must already be validated.
+ */
+export async function replaceAllData(snapshot: BackupSnapshot, options: Confirmed): Promise<void> {
+  requireConfirmation(options, 'Restoring a backup');
+  await withTransaction(
+    [STORES.stories, STORES.attempts, STORES.recordings, STORES.meta],
+    'readwrite',
+    async (tx) => {
+      const stories = tx.objectStore(STORES.stories);
+      const attempts = tx.objectStore(STORES.attempts);
+      const recordings = tx.objectStore(STORES.recordings);
+      await Promise.all([promisify(stories.clear()), promisify(attempts.clear()), promisify(recordings.clear())]);
+      // add() rather than put(): a repeated id fails the whole restore instead of being merged.
+      for (const story of snapshot.stories) await promisify(stories.add(story));
+      for (const attempt of snapshot.attempts) await promisify(attempts.add(attempt));
+      for (const recording of snapshot.recordings) await promisify(recordings.add(recording));
+      // Restored data replaces the samples; do not add them again on next start.
+      await promisify(tx.objectStore(STORES.meta).put(true, SEEDED_KEY));
+    },
+  );
+}
+
+const LAST_BACKUP_KEY = 'lastBackupAt';
+
+/** When the user last created a full backup file in this browser, if ever. */
+export async function getLastBackupAt(): Promise<string | null> {
+  const value = await withTransaction([STORES.meta], 'readonly', (tx) =>
+    promisify(tx.objectStore(STORES.meta).get(LAST_BACKUP_KEY) as IDBRequest<unknown>),
+  );
+  return typeof value === 'string' ? value : null;
+}
+
+export async function setLastBackupAt(when: Date): Promise<void> {
+  await withTransaction([STORES.meta], 'readwrite', (tx) =>
+    promisify(tx.objectStore(STORES.meta).put(when.toISOString(), LAST_BACKUP_KEY)),
   );
 }
