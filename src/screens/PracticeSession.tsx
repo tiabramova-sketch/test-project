@@ -106,6 +106,12 @@ export function PracticeSession({ navigate, initialStoryId }: { navigate: Naviga
   };
 
   const discard = () => {
+    // Throwing away an answer (and its audio) cannot be undone, so ask first.
+    const hasAnswer = phase === 'review' || (phase === 'practising' && recorder.status !== 'error');
+    if (hasAnswer) {
+      const what = withAudio ? 'this answer and its recording' : 'this answer';
+      if (!window.confirm(`Discard ${what}? It will not be saved.`)) return;
+    }
     recorder.reset();
     setPhase('setup');
   };

@@ -58,7 +58,7 @@ export function PracticeHistory() {
             <tbody>
               {attempts.map((a) => (
                 <tr key={a.id}>
-                  <td data-label="When">{formatDate(a.startedAt)}</td>
+                  <td data-label="When" className="when">{formatDate(a.startedAt)}</td>
                   <td data-label="Story">{a.storyTitle}</td>
                   <td data-label="Level">
                     {a.level}. {SCAFFOLD_LEVELS[a.level - 1]?.name}
